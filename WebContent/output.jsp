@@ -81,14 +81,11 @@
         </pre>
         </div>
         </b>
-        <span> %%Education data%% </span>
-        <br>
-        <br>
-        <span> %%Gender%% </span>
-        <br>
-        <br>
-        <span> %%Age%% </span>
-        <br>
+        <span> <b>Based on your Education Level(${edulevel}) then average income in US are as follows : 
+               <p>Average income for ${Gender} in US (per month) is: $${incomegender}</p>
+               <p>Average income for ${race} in US (per month) is: $${incomerace}</p>
+               <p>Average income for Age ${age} in US (per month) is: $${incomeage} </p></span>
+        
         <br>
         <div id="name">
             <h5>For additional info: <a href="#" onclick = "mySignup()" ><button style="font-family:Florence, cursive;margin-left:30px;width: 100px;text-align: center;border-radius: 12px; background-color:#2FB04D; color:#EBF1ED ">Click Here</button> </a></h5>
