@@ -59,6 +59,15 @@ public class OutputFormServlet extends HttpServlet {
 			
 			
 		}
+		
+		request.setAttribute("edulevel", outEducationObj.getEducationLevel());
+		request.setAttribute("incomegender", outEducationObj.getIncomeGender());
+		request.setAttribute("incomerace", outEducationObj.getIncomeEthnicity());
+		request.setAttribute("incomeage", outEducationObj.getIncomeAgeGroup());
+		request.setAttribute("Gender",InputObj.getGender());
+		request.setAttribute("race",InputObj.getEthnicity());
+		request.setAttribute("age",InputObj.getAge());
+		
 		request.getRequestDispatcher("output.jsp").forward(request, response);
 		
 		

@@ -19,44 +19,44 @@ import org.apache.jena.query.ResultSet;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.RDFNode;
-import org.apache.jena.util.FileManager;
 
 @WebServlet("/InputFormServlet")
 public class InputFormServlet extends HttpServlet {
-
+	
+	private static final long serialVersionUID = 1L;
+	private static InputStream ins = null;
+	public static Model state = null;
+	
 	protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
 		
 		InputClass inputObj = new InputClass();
-		inputObj.setName(inputObj.getName());
+		inputObj.setName(request.getParameter("name"));
 		inputObj.setGender(request.getParameter("gender"));
 		inputObj.setAge(Integer.parseInt(request.getParameter("age")));
 		inputObj.seteducation(request.getParameter("education"));
 		inputObj.setEthnicity(request.getParameter("ethnicity"));
 		inputObj.setJob(request.getParameter("jobarea"));
-		ArrayList<String> recommendedStates = new ArrayList<String>() ;
-		recommendedStates = PoccessInputData(inputObj);
 		
-		PrintWriter out = response.getWriter();
-		for(String state: recommendedStates)
-			out.println(state);
-			
-		/*
-		PrintWriter out = response.getWriter();
-		String filename = "/WEB-INF/Project_Team8.owl";
-		ServletContext context = getServletContext();
-		InputStream is = context.getResourceAsStream(filename);
-		if (is != null) {
-			InputStreamReader isr = new InputStreamReader(is);
-			BufferedReader reader = new BufferedReader(isr);
-			PrintWriter writer = response.getWriter();
-			String text = "";
-			while ((text = reader.readLine()) != null) {
-				writer.println(text);
-			}
-		}
-		else
-			out.print("Fuck");
-		*/
+		String[] preference = new String[3];
+		preference[0] = request.getParameter("priority1");
+		preference[1] = request.getParameter("priority2");
+		preference[2] = request.getParameter("priority3");
+		
+		ArrayList<String> recommendedStates = new ArrayList<String>() ;
+		recommendedStates = PoccessInputData(inputObj, preference);
+
+		request.setAttribute("state1", recommendedStates.get(0));	
+		request.setAttribute("state2", recommendedStates.get(1));	
+		request.setAttribute("state3", recommendedStates.get(2));	
+		request.setAttribute("name", inputObj.getName());
+		request.setAttribute("gender", inputObj.getGender());
+		request.setAttribute("age", inputObj.getAge());
+		request.setAttribute("education", inputObj.geteducation());
+		request.setAttribute("ethnicity", inputObj.getEthnicity());
+		request.setAttribute("jobarea", inputObj.getJob());
+
+		OutputFormServlet outObj = new OutputFormServlet();
+		outObj.doPost(request, response);	
 	}
 
 	protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
@@ -64,21 +64,32 @@ public class InputFormServlet extends HttpServlet {
 	}
 	
 	
-	public ArrayList<String> PoccessInputData(InputClass InputObj) throws IOException {
+	public ArrayList<String> PoccessInputData(InputClass InputObj, String[] preference) throws IOException {
 		String defaultNameSpace = "http://www.semanticweb.org/team8/ontologies/ontology-team-8#";
 		ArrayList<String> recommendedStates = new ArrayList<String>();
-		String[] preference = {"Job", "CostOfLiving", "Safety"};
-		InputClass InputDetails = new InputClass();
-		Model state = null;
+		//String[] preference = {"Job", "CostOfLiving", "Safety"};
+		
+		InputClass InputDetails = new InputClass();		
 		InputDetails = InputObj;
 		state = ModelFactory.createOntologyModel();
 		String filename = "/WEB-INF/Project_Team8.owl";
 		ServletContext context = getServletContext();
-		InputStream is = context.getResourceAsStream(filename);
-		//InputStream inInstance = FileManager.get().open("/WEB-INF/Project_Team8.owl");
-		state.read(is,defaultNameSpace);
-		is.close();
+		ins = context.getResourceAsStream(filename);
+		state.read(ins,defaultNameSpace);
 		recommendedStates = runQuery(roundOneQueryGenerator(preference[0], InputDetails), state);
+		
+		String finalStates = "";
+		for(String statename : recommendedStates)
+			finalStates += " state:" + statename + ",";
+		finalStates = finalStates.substring(0, finalStates.length() -1);		
+		recommendedStates = runQuery(roundTwoQueryGenerator(preference[1], finalStates, InputDetails), state);
+		
+		finalStates = "";
+		for(String statename : recommendedStates)
+			finalStates += " state:" + statename + ",";
+		finalStates = finalStates.substring(0, finalStates.length() -1);
+		recommendedStates = runQuery(roundThreeQueryGenerator(preference[2], finalStates, InputDetails), state);
+		
 		return recommendedStates;
 	}	
 	
@@ -94,6 +105,32 @@ public class InputFormServlet extends HttpServlet {
 		default: return "";
 		}
 	}	
+	
+	public static String roundTwoQueryGenerator(String Type, String stateList, InputClass InputDetails) {
+		switch(Type) {		
+		case "Job": return " select  ?subject where{ ?subject state:" + InputDetails.getJob() + " ?object  FILTER(?subject IN ("+ stateList + "))} ORDER BY DESC(?object) LIMIT 5";
+		case "Safety": return " select  ?subject where{ ?subject state:stateSafetyRank ?object  FILTER(?subject IN ("+ stateList + "))} ORDER BY ?object LIMIT 5";
+		case "Weather": return " select  ?subject where{ ?subject state:favorabilityFactor ?object  FILTER(?subject IN ("+ stateList + "))} ORDER BY ?object LIMIT 5";
+		case "CostOfLiving": return " select  ?subject where{ ?subject state:hasMinimumExpenses ?object  FILTER(?subject IN ("+ stateList + "))} ORDER BY ?object LIMIT 5";
+		case "Ethnicity": return " select  ?subject where{ ?subject state:" + InputDetails.getEthnicity() + " ?object  FILTER(?subject IN ("+ stateList + "))} ORDER BY DESC(?object) LIMIT 5";
+		case "Education": return " select  ?subject where{ ?subject state:educationIndex ?object  FILTER(?subject IN ("+ stateList + "))} ORDER BY DESC(?object) LIMIT 5";
+		case "Health": return " select  ?subject where{ ?subject state:healthIndex ?object  FILTER(?subject IN ("+ stateList + "))} ORDER BY DESC(?object) LIMIT 5";
+		default: return "";
+		}		
+	}
+	
+	public static String roundThreeQueryGenerator(String Type, String stateList, InputClass InputDetails) {
+		switch(Type) {		
+		case "Job": return " select  ?subject where{ ?subject state:" + InputDetails.getJob() + "?object  FILTER(?subject IN ("+ stateList + "))} ORDER BY DESC(?object) LIMIT 3";
+		case "Safety": return " select  ?subject where{ ?subject state:stateSafetyRank ?object  FILTER(?subject IN ("+ stateList + "))} ORDER BY ?object LIMIT 3";
+		case "Weather": return " select  ?subject where{ ?subject state:favorabilityFactor ?object  FILTER(?subject IN ("+ stateList + "))} ORDER BY ?object LIMIT 3";
+		case "CostOfLiving": return " select  ?subject where{ ?subject state:hasMinimumExpenses ?object  FILTER(?subject IN ("+ stateList + "))} ORDER BY ?object LIMIT 3";
+		case "Ethnicity": return " select  ?subject where{ ?subject state:" + InputDetails.getEthnicity() + "?object  FILTER(?subject IN ("+ stateList + "))} ORDER BY DESC(?object) LIMIT 3";
+		case "Education": return " select  ?subject where{ ?subject state:educationIndex ?object  FILTER(?subject IN ("+ stateList + "))} ORDER BY DESC(?object) LIMIT 3";
+		case "Health": return " select  ?subject where{ ?subject state:healthIndex ?object  FILTER(?subject IN ("+ stateList + "))} ORDER BY DESC(?object) LIMIT 3";
+		default: return "";
+		}		
+	}
 	
 	private ArrayList<String> runQuery(String queryRequest, Model model)
 	{
